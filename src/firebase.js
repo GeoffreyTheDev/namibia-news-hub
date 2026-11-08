@@ -11,13 +11,13 @@ import {
 
 // 1. YOUR UNIQUE FIREBASE CONFIGURATION GOES HERE
 const firebaseConfig = {
-  apiKey: "AIzaSyA-ExampleKeyHere...", // Replace with your real Firebase API Key
+  apiKey: "AIzaSyCU6oMxh4cVvUpX6gsYD8eaFCiBh1ahJRw",
   authDomain: "news-4ab39.firebaseapp.com",
   projectId: "news-4ab39",
-  storageBucket: "news-4ab39.appspot.com",
-  messagingSenderId: "1234567890", // Replace with your real Sender ID
-  appId: "1:1234567890:web:abc123def456", // Replace with your real App ID
-  measurementId: "G-ABCDEFG123" // Replace with your real Measurement ID
+  storageBucket: "news-4ab39.firebasestorage.app",
+  messagingSenderId: "799257491918",
+  appId: "1:799257491918:web:4a413d668d2f5dfa84939f",
+  measurementId: "G-96KV1C953V"
 };
 
 // 2. THIS IS THE MISSING LINE CAUSING THE ERROR
@@ -40,6 +40,15 @@ export const signInWithGoogle = async () => {
 
 // Email Sign Up Helper
 export const registerWithEmail = async (email, password) => {
+  // Enforce password complexity
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+  if (!hasUpperCase || !hasSpecialChar) {
+    alert("Password must contain at least one uppercase letter and one special character.");
+    return null;
+  }
+
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     await sendEmailVerification(userCredential.user);

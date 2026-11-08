@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { signInWithGoogle, registerWithEmail, loginWithEmail } from '../firebase';
 import { FcGoogle } from 'react-icons/fc';
-import { FaNewspaper } from 'react-icons/fa'; // New Icon
+import { FaNewspaper } from 'react-icons/fa';
 
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoginMode, setIsLoginMode] = useState(false); // Toggle state
+  const [verifyPassword, setVerifyPassword] = useState('');
+  const [isLoginMode, setIsLoginMode] = useState(true); // Default to login mode
 
   const handleGoogleAuth = async () => {
     const user = await signInWithGoogle();
@@ -19,6 +20,10 @@ export default function Login({ onLogin }) {
       const user = await loginWithEmail(email, password);
       if (user) onLogin(user);
     } else {
+      if (password !== verifyPassword) {
+        alert("Passwords do not match!");
+        return;
+      }
       const user = await registerWithEmail(email, password);
       if (user) onLogin(user);
     }
@@ -29,20 +34,20 @@ export default function Login({ onLogin }) {
       {/* Yellow overlay gradient for the final Namibian flag color */}
       <div className="absolute inset-0 bg-gradient-to-tr from-yellow-400/40 to-transparent pointer-events-none"></div>
 
-      {/* Floating Background Images */}
+      {/* Floating Namibian Background Images */}
       <img 
-        src="https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=400&q=80" 
-        alt="News Desk" 
+        src="https://images.unsplash.com/photo-1549473889-14f410d83298?w=400&q=80" 
+        alt="Namibian Dunes" 
         className="absolute top-10 left-10 w-32 md:w-56 rounded-xl shadow-xl opacity-70 animate-float pointer-events-none hidden sm:block" 
       />
       <img 
-        src="https://images.unsplash.com/photo-1495020689067-958852a7765e?w=400&q=80" 
-        alt="Newspaper" 
+        src="https://images.unsplash.com/photo-1516426122078-c23e76319801?w=400&q=80" 
+        alt="African Wildlife" 
         className="absolute bottom-10 right-10 w-32 md:w-52 rounded-xl shadow-xl opacity-70 animate-float-reverse pointer-events-none hidden sm:block" 
       />
       <img 
-        src="https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=400&q=80" 
-        alt="Articles" 
+        src="https://images.unsplash.com/photo-1534008897995-27a23e859048?w=400&q=80" 
+        alt="Namibian Landscape" 
         className="absolute top-20 right-20 w-24 md:w-40 rounded-xl shadow-xl opacity-50 animate-float pointer-events-none hidden md:block" 
       />
 
@@ -80,12 +85,25 @@ export default function Login({ onLogin }) {
           />
           <input 
             type="password" 
-            placeholder="Password"
+            placeholder={isLoginMode ? "Password" : "Create Password (e.g., Pass!word)"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full border border-gray-300 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow"
             required
           />
+          
+          {/* Conditional Verify Password Field */}
+          {!isLoginMode && (
+            <input 
+              type="password" 
+              placeholder="Verify Password"
+              value={verifyPassword}
+              onChange={(e) => setVerifyPassword(e.target.value)}
+              className="w-full border border-gray-300 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow"
+              required
+            />
+          )}
+
           <button 
             type="submit" 
             className="w-full bg-blue-600 text-white font-bold p-3 rounded-xl hover:bg-blue-700 shadow-md hover:shadow-lg transition-all"
@@ -94,14 +112,13 @@ export default function Login({ onLogin }) {
           </button>
         </form>
 
-        {/* Toggle Switch */}
         <div className="mt-6 text-center text-sm text-gray-600">
           {isLoginMode ? "Don't have an account? " : "Already have an account? "}
           <button 
             onClick={() => setIsLoginMode(!isLoginMode)}
             className="text-blue-600 font-bold hover:underline focus:outline-none"
           >
-            {isLoginMode ? 'Sign Up' : 'Log In'}
+            {isLoginMode ? 'Create Account' : 'Log In Here'}
           </button>
         </div>
 
