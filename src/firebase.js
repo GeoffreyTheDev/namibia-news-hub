@@ -6,11 +6,25 @@ import {
   signInWithPopup, 
   createUserWithEmailAndPassword,
   sendEmailVerification,
-  signInWithEmailAndPassword // <-- ADD THIS IMPORT
+  signInWithEmailAndPassword
 } from "firebase/auth";
 
-// ... (Keep your existing firebaseConfig and initialization) ...
+// 1. YOUR UNIQUE FIREBASE CONFIGURATION GOES HERE
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "news-4ab39.firebaseapp.com",
+  projectId: "news-4ab39",
+  storageBucket: "news-4ab39.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID",
+  measurementId: "YOUR_MEASUREMENT_ID"
+};
 
+// 2. THIS IS THE MISSING LINE CAUSING THE ERROR
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+
+// 3. AUTHENTICATION EXPORTS
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
@@ -24,7 +38,7 @@ export const signInWithGoogle = async () => {
   }
 };
 
-// Email Sign Up Helper (Includes Verification)
+// Email Sign Up Helper
 export const registerWithEmail = async (email, password) => {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -37,7 +51,7 @@ export const registerWithEmail = async (email, password) => {
   }
 };
 
-// NEW: Email Login Helper
+// Email Login Helper
 export const loginWithEmail = async (email, password) => {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -46,4 +60,4 @@ export const loginWithEmail = async (email, password) => {
     console.error("Login Error:", error);
     alert("Login failed. Please check your email and password.");
   }
-};
+};git add .
