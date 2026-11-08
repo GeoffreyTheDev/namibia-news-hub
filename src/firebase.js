@@ -11,13 +11,13 @@ import {
 
 // 1. YOUR UNIQUE FIREBASE CONFIGURATION GOES HERE
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
+  apiKey: "AIzaSyA-ExampleKeyHere...", // Replace with your real Firebase API Key
   authDomain: "news-4ab39.firebaseapp.com",
   projectId: "news-4ab39",
   storageBucket: "news-4ab39.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID",
-  measurementId: "YOUR_MEASUREMENT_ID"
+  messagingSenderId: "1234567890", // Replace with your real Sender ID
+  appId: "1:1234567890:web:abc123def456", // Replace with your real App ID
+  measurementId: "G-ABCDEFG123" // Replace with your real Measurement ID
 };
 
 // 2. THIS IS THE MISSING LINE CAUSING THE ERROR
@@ -60,4 +60,4 @@ export const loginWithEmail = async (email, password) => {
     console.error("Login Error:", error);
     alert("Login failed. Please check your email and password.");
   }
-};git add .
+};
