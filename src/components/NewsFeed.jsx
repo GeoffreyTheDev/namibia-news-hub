@@ -3,35 +3,35 @@ import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { FaRobot, FaTimes, FaPaperPlane, FaUserCircle } from 'react-icons/fa';
 
-// Mock data updated with image thumbnails and full article text
+// Mock data updated with working image thumbnails and full article text with paragraphs
 const mockArticles = [
   {
     id: 1,
     title: "IPC regional chairperson Kaufmann steps down, warns party against internal division",
     date: "Sun Nov 08 2026",
-    image: "https://images.unsplash.com/photo-1541872511211-137bc0f828ce?w=500&q=80",
+    image: "https://images.unsplash.com/photo-1541872511211-137bc0f828ce?auto=format&fit=crop&w=800&q=80",
     summary: "A major political shift in the region as Kaufmann steps down.",
-    fullText: "IPC regional chairperson Kaufmann has officially stepped down from his position today, issuing a strong warning to the party against the dangers of internal division. He emphasized that unity is the only path forward for the party's success in the upcoming national elections..."
+    fullText: "IPC regional chairperson Kaufmann has officially stepped down from his position today, issuing a strong warning to the party against the dangers of internal division. He emphasized that unity is the only path forward for the party's success in the upcoming national elections.\n\nSpeaking at a press conference in Windhoek, Kaufmann noted that ideological factions have recently threatened the core mission of the party. 'If we cannot stand united in our own halls, we cannot expect the Namibian people to trust us with the nation,' he stated. His resignation triggers a mandatory special election within the party over the next 30 days."
   },
   {
     id: 2,
     title: "Windhoek warns defaulters of court action over N$900m debt",
     date: "Sun Nov 08 2026",
-    image: "https://images.unsplash.com/photo-1577908906967-0e6203cf7316?w=500&q=80",
+    image: "https://images.unsplash.com/photo-1577908906967-0e6203cf7316?auto=format&fit=crop&w=800&q=80",
     summary: "The City of Windhoek is cracking down on unpaid debts.",
-    fullText: "The City of Windhoek has issued a final warning to residents and businesses defaulting on municipal services. With outstanding debts reaching a staggering N$900 million, the municipality announced it will commence legal proceedings and utility disconnections starting next month to recover the funds..."
+    fullText: "The City of Windhoek has issued a final warning to residents and businesses defaulting on municipal services. With outstanding debts reaching a staggering N$900 million, the municipality announced it will commence legal proceedings and utility disconnections starting next month to recover the funds.\n\nThe municipal spokesperson explained that this debt severely limits the city's ability to maintain public infrastructure, water sanitation, and emergency services. Debt relief programs and payment plans are available for vulnerable households, provided they apply before the deadline at the end of the month."
   },
   {
     id: 3,
     title: "Economic task force calls for urgent deal with SA to rescue FMD-hit farmers",
     date: "Sun Nov 08 2026",
-    image: "https://images.unsplash.com/photo-1599839619722-39751411ea63?w=500&q=80",
+    image: "https://images.unsplash.com/photo-1599839619722-39751411ea63?auto=format&fit=crop&w=800&q=80",
     summary: "Farmers are seeking immediate relief from the ongoing crisis.",
-    fullText: "An urgent economic task force has appealed to the government to broker an immediate trade agreement with South Africa. Namibian livestock farmers, severely impacted by the recent Foot and Mouth Disease (FMD) outbreak, are facing critical financial losses and require immediate border export allowances..."
+    fullText: "An urgent economic task force has appealed to the government to broker an immediate trade agreement with South Africa. Namibian livestock farmers, severely impacted by the recent Foot and Mouth Disease (FMD) outbreak, are facing critical financial losses and require immediate border export allowances.\n\nThe agricultural sector, a massive pillar of the Namibian economy, has seen exports drop by over 40% in the affected regions. The task force is proposing a specialized quarantine and testing corridor that would allow verified healthy livestock to cross the border, ensuring farmers can maintain their livelihoods while adhering to international biosafety standards."
   }
 ];
 
-export default function Dashboard({ user }) {
+export default function NewsFeed({ user }) {
   const [selectedArticle, setSelectedArticle] = useState(null);
   
   // AI Chat State
@@ -151,9 +151,8 @@ export default function Dashboard({ user }) {
             </div>
             <div className="p-6 md:p-8 overflow-y-auto text-gray-700 leading-relaxed text-lg">
                <p className="text-sm text-blue-600 font-bold mb-6">{selectedArticle.date}</p>
-               <p>{selectedArticle.fullText}</p>
-               {/* Just repeating text to show scrolling behavior in the modal */}
-               <p className="mt-4">{selectedArticle.fullText}</p>
+               {/* whitespace-pre-wrap ensures the \n\n paragraphs display correctly */}
+               <p className="whitespace-pre-wrap">{selectedArticle.fullText}</p>
             </div>
           </div>
         </div>

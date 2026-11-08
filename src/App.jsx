@@ -1,38 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from './firebase';
 import Login from './components/Login';
 import NewsFeed from './components/NewsFeed';
-import NewsAI from './components/NewsAI';
 
 export default function App() {
   const [user, setUser] = useState(null);
-  
-  // We'll pass these headlines to the AI later so it knows the daily news
-  const [currentHeadlines, setCurrentHeadlines] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  if (!user) {
-    return <Login onLogin={(loggedInUser) => setUser(loggedInUser)} />;
+  useEffect(() => {
+    // This listens for the user's login state automatically
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Show a blank screen or loading spinner while checking auth state
+  if (loading) {
+    return <div className="min-h-screen bg-gray-50 flex items-center justify-center">Loading...</div>;
   }
 
-  return (
-    <div className="min-h-screen bg-gray-100">
-      <header className="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-10">
-        <h1 className="text-xl font-bold text-blue-600">Namibia News Hub</h1>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-600">Welcome, {user.displayName || user.email}</span>
-          <button 
-            onClick={() => setUser(null)}
-            className="text-sm text-red-500 hover:underline"
-          >
-            Sign Out
-          </button>
-        </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto p-4 pt-8">
-        <NewsFeed setHeadlines={setCurrentHeadlines} />
-      </main>
-
-      <NewsAI currentHeadlines={currentHeadlines} />
-    </div>
-  );
+  return user ? <NewsFeed user={user} /> : <Login onLogin={setUser} />;
 }
