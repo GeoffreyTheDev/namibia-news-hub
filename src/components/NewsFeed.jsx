@@ -13,8 +13,6 @@ const localDatabase = [
     id: 1,
     title: "IPC regional chairperson Kaufmann steps down, warns party against internal division",
     date: getTodayDate(),
-    // To use the exact image from your screenshot, right-click the image on The Namibian's website, 
-    // click "Copy Image Address", and paste it between these quotes:
     image: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Windhoek_Namibia.jpg/800px-Windhoek_Namibia.jpg", 
     summary: "A major political shift in the region as Kaufmann steps down.",
     fullText: "IPC regional chairperson Kaufmann has officially stepped down from his position today, issuing a strong warning to the party against the dangers of internal division. He emphasized that unity is the only path forward for the party's success in the upcoming national elections.\n\nSpeaking at a press conference in Windhoek, Kaufmann noted that ideological factions have recently threatened the core mission of the party. 'If we cannot stand united in our own halls, we cannot expect the Namibian people to trust us with the nation,' he stated. His resignation triggers a mandatory special election within the party over the next 30 days.",
@@ -72,8 +70,10 @@ export default function NewsFeed({ user }) {
     e.preventDefault();
     if (!chatInput.trim()) return;
 
-    const newMessages = [...chatMessages, { role: 'user', text: chatInput }];
-    setChatMessages(newMessages);
+    const userText = chatInput;
+    
+    // Add user message AND an empty AI placeholder message right away
+    setChatMessages(prev => [...prev, { role: 'user', text: userText }, { role: 'ai', text: '' }]);
     setChatInput('');
     setIsTyping(true);
 
@@ -82,10 +82,10 @@ export default function NewsFeed({ user }) {
       if (!apiKey) throw new Error("API Key is missing from Vercel.");
 
       const newsContext = localDatabase.map(a => `Title: ${a.title}\nSummary: ${a.summary}`).join('\n\n');
-      const systemPrompt = `You are a helpful AI news assistant for Namib News Hub. Use the following news articles to answer the user's question accurately.\n\nTODAY'S NEWS:\n${newsContext}\n\nUSER QUESTION: ${chatInput}`;
+      const systemPrompt = `You are a helpful AI news assistant for Namib News Hub. Use the following news articles to answer the user's question accurately.\n\nTODAY'S NEWS:\n${newsContext}\n\nUSER QUESTION: ${userText}`;
 
-      // UPDATED TO THE CORRECT MODEL: gemini-3.8-flash
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`, {
+      // FASTEST MODEL (8b-latest) WITH STREAMING (streamGenerateContent)
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b-latest:streamGenerateContent?alt=sse&key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -93,18 +93,54 @@ export default function NewsFeed({ user }) {
         })
       });
       
-      const data = await response.json();
-      
-      if (data.error) {
-        throw new Error(data.error.message);
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error?.message || "API Error");
       }
-      
-      const aiReply = data.candidates[0].content.parts[0].text;
-      setChatMessages([...newMessages, { role: 'ai', text: aiReply }]);
+
+      // Stream decoder logic
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let aiText = "";
+
+      setIsTyping(false); // Stop the bouncing dots
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.replace('data: ', '').trim();
+            if (!dataStr) continue;
+            
+            try {
+              const parsed = JSON.parse(dataStr);
+              const textPart = parsed.candidates[0]?.content?.parts[0]?.text || "";
+              aiText += textPart;
+              
+              // Update the AI message in real time
+              setChatMessages(prev => {
+                const updated = [...prev];
+                updated[updated.length - 1].text = aiText;
+                return updated;
+              });
+            } catch (err) {
+              // Ignore partial JSON chunks during the stream
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error("AI Error:", error);
-      setChatMessages([...newMessages, { role: 'ai', text: `AI Error: ${error.message}` }]);
-    } finally {
+      setChatMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1].text = `AI Error: ${error.message}`;
+        return updated;
+      });
       setIsTyping(false);
     }
   };
@@ -242,7 +278,7 @@ export default function NewsFeed({ user }) {
           <div className="flex-1 p-4 overflow-y-auto bg-slate-50 flex flex-col gap-3">
             {chatMessages.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] p-3 rounded-2xl text-sm shadow-sm ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none'}`}>
+                <div className={`max-w-[85%] p-3 rounded-2xl text-sm shadow-sm ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none whitespace-pre-wrap'}`}>
                   {msg.text}
                 </div>
               </div>
