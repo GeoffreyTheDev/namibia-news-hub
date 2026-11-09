@@ -7,13 +7,13 @@ const getTodayDate = () => {
   return new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' });
 };
 
-// LOCAL DATABASE: This bypasses the blocked scraper so images and text load instantly.
+// LOCAL DATABASE: Loads immediately and renders high-quality article images
 const localDatabase = [
   {
     id: 1,
     title: "IPC regional chairperson Kaufmann steps down, warns party against internal division",
     date: getTodayDate(),
-    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Windhoek_Namibia.jpg/800px-Windhoek_Namibia.jpg", 
+    image: "https://images.unsplash.com/photo-1526628953301-3e589a6a1274?auto=format&fit=crop&w=800&q=80", 
     summary: "A major political shift in the region as Kaufmann steps down.",
     fullText: "IPC regional chairperson Kaufmann has officially stepped down from his position today, issuing a strong warning to the party against the dangers of internal division. He emphasized that unity is the only path forward for the party's success in the upcoming national elections.\n\nSpeaking at a press conference in Windhoek, Kaufmann noted that ideological factions have recently threatened the core mission of the party. 'If we cannot stand united in our own halls, we cannot expect the Namibian people to trust us with the nation,' he stated. His resignation triggers a mandatory special election within the party over the next 30 days.",
     sourceLink: "https://namibian.com.na/ipc-regional-chairperson-kaufmann-steps-down-warns-party-against-internal-division/"
@@ -22,7 +22,7 @@ const localDatabase = [
     id: 2,
     title: "Windhoek warns defaulters of court action over N$900m debt",
     date: getTodayDate(),
-    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Supreme_Court_of_Namibia.jpg/800px-Supreme_Court_of_Namibia.jpg", 
+    image: "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?auto=format&fit=crop&w=800&q=80", 
     summary: "The City of Windhoek is cracking down on unpaid debts.",
     fullText: "The City of Windhoek has issued a final warning to residents and businesses defaulting on municipal services. With outstanding debts reaching a staggering N$900 million, the municipality announced it will commence legal proceedings and utility disconnections starting next month to recover the funds.\n\nThe municipal spokesperson explained that this debt severely limits the city's ability to maintain public infrastructure, water sanitation, and emergency services. Debt relief programs and payment plans are available for vulnerable households, provided they apply before the deadline at the end of the month.",
     sourceLink: "https://namibian.com.na"
@@ -31,7 +31,7 @@ const localDatabase = [
     id: 3,
     title: "Economic task force calls for urgent deal with SA to rescue FMD-hit farmers",
     date: getTodayDate(),
-    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Nguni_cattle.jpg/800px-Nguni_cattle.jpg", 
+    image: "https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=800&q=80", 
     summary: "Farmers are seeking immediate relief from the ongoing crisis.",
     fullText: "An urgent economic task force has appealed to the government to broker an immediate trade agreement with South Africa. Namibian livestock farmers, severely impacted by the recent Foot and Mouth Disease (FMD) outbreak, are facing critical financial losses and require immediate border export allowances.\n\nThe agricultural sector, a massive pillar of the Namibian economy, has seen exports drop by over 40% in the affected regions. The task force is proposing a specialized quarantine and testing corridor that would allow verified healthy livestock to cross the border, ensuring farmers can maintain their livelihoods while adhering to international biosafety standards.",
     sourceLink: "https://namibian.com.na"
@@ -60,7 +60,7 @@ export default function NewsFeed({ user }) {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages]);
+  }, [chatMessages, isTyping]);
 
   const handleLogout = () => {
     signOut(auth);
@@ -72,75 +72,60 @@ export default function NewsFeed({ user }) {
 
     const userText = chatInput;
     
-    // Add user message AND an empty AI placeholder message right away
-    setChatMessages(prev => [...prev, { role: 'user', text: userText }, { role: 'ai', text: '' }]);
+    // Add user message to chat UI
+    setChatMessages(prev => [...prev, { role: 'user', text: userText }]);
     setChatInput('');
     setIsTyping(true);
 
     try {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) throw new Error("API Key is missing from Vercel.");
+      if (!apiKey) throw new Error("API Key is missing from Vercel environment variables.");
 
+      // 1. DYNAMIC MODEL DISCOVERY: Queries Google API to find an active model for this key
+      let selectedModel = 'gemini-1.5-flash';
+      try {
+        const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        const listData = await listRes.json();
+        if (listData.models && Array.isArray(listData.models)) {
+          const availableModel = listData.models.find(m => 
+            m.supportedGenerationMethods?.includes('generateContent') &&
+            (m.name.includes('flash') || m.name.includes('pro'))
+          );
+          if (availableModel) {
+            selectedModel = availableModel.name.replace('models/', '');
+          }
+        }
+      } catch (err) {
+        console.warn("Dynamic model lookup skipped, using default model.");
+      }
+
+      // 2. Prepare Context Prompt
       const newsContext = localDatabase.map(a => `Title: ${a.title}\nSummary: ${a.summary}`).join('\n\n');
       const systemPrompt = `You are a helpful AI news assistant for Namib News Hub. Use the following news articles to answer the user's question accurately.\n\nTODAY'S NEWS:\n${newsContext}\n\nUSER QUESTION: ${userText}`;
 
-      // UPDATED: Using the universal "gemini-1.5-flash-latest" model
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:streamGenerateContent?alt=sse&key=${apiKey}`, {
+      // 3. Make API Call to the verified active model
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: systemPrompt }] }]
         })
       });
+
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(data.error.message);
+      }
+
+      const aiReply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't process a response.";
       
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error?.message || "API Error");
-      }
-
-      // Stream decoder logic
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder("utf-8");
-      let aiText = "";
-
-      setIsTyping(false); // Stop the bouncing dots
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
-        
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const dataStr = line.replace('data: ', '').trim();
-            if (!dataStr) continue;
-            
-            try {
-              const parsed = JSON.parse(dataStr);
-              const textPart = parsed.candidates[0]?.content?.parts[0]?.text || "";
-              aiText += textPart;
-              
-              // Update the AI message in real time
-              setChatMessages(prev => {
-                const updated = [...prev];
-                updated[updated.length - 1].text = aiText;
-                return updated;
-              });
-            } catch (err) {
-              // Ignore partial JSON chunks during the stream
-            }
-          }
-        }
-      }
+      // Append single AI message bubble when complete
+      setChatMessages(prev => [...prev, { role: 'ai', text: aiReply }]);
     } catch (error) {
       console.error("AI Error:", error);
-      setChatMessages(prev => {
-        const updated = [...prev];
-        updated[updated.length - 1].text = `AI Error: ${error.message}`;
-        return updated;
-      });
+      setChatMessages(prev => [...prev, { role: 'ai', text: `AI Error: ${error.message}` }]);
+    } finally {
       setIsTyping(false);
     }
   };
@@ -149,6 +134,7 @@ export default function NewsFeed({ user }) {
     <div className="min-h-screen bg-slate-50 relative text-gray-800 font-sans">
       <div className="absolute inset-0 bg-[radial-gradient(#93c5fd_1px,transparent_1px)] [background-size:20px_20px] opacity-30 pointer-events-none fixed"></div>
 
+      {/* Header */}
       <header className="bg-white shadow-md sticky top-0 z-40 transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
@@ -164,6 +150,7 @@ export default function NewsFeed({ user }) {
         </div>
       </header>
 
+      {/* Main Grid */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {currentArticles.map((article) => (
@@ -195,6 +182,7 @@ export default function NewsFeed({ user }) {
           ))}
         </div>
 
+        {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex justify-center items-center gap-4 mt-12 mb-8">
             <button 
@@ -228,6 +216,7 @@ export default function NewsFeed({ user }) {
         )}
       </main>
 
+      {/* Article Modal */}
       {selectedArticle && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-blue-900/60 backdrop-blur-sm transition-opacity">
           <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-fade-in relative">
@@ -263,6 +252,7 @@ export default function NewsFeed({ user }) {
         </div>
       )}
 
+      {/* Floating AI Chatbox */}
       <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end">
         <div className={`bg-white rounded-2xl shadow-2xl border border-blue-100 overflow-hidden transition-all duration-300 transform origin-bottom-right mb-4 flex flex-col w-80 sm:w-96 ${isChatOpen ? 'scale-100 opacity-100 h-[28rem]' : 'scale-0 opacity-0 h-0'}`}>
           <div className="bg-blue-600 p-4 text-white flex justify-between items-center shadow-md">
@@ -276,13 +266,18 @@ export default function NewsFeed({ user }) {
           </div>
           
           <div className="flex-1 p-4 overflow-y-auto bg-slate-50 flex flex-col gap-3">
-            {chatMessages.map((msg, idx) => (
-              <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] p-3 rounded-2xl text-sm shadow-sm ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none whitespace-pre-wrap'}`}>
-                  {msg.text}
+            {chatMessages.map((msg, idx) => {
+              if (!msg.text) return null; // Prevents rendering empty bubbles
+              return (
+                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] p-3 rounded-2xl text-sm shadow-sm ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none whitespace-pre-wrap'}`}>
+                    {msg.text}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
+
+            {/* Single Loading Bubble */}
             {isTyping && (
               <div className="flex justify-start">
                 <div className="bg-white text-gray-400 border border-gray-200 p-3 rounded-2xl rounded-bl-none text-sm shadow-sm flex gap-1 items-center">
