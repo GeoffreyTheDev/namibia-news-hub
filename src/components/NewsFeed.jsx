@@ -7,13 +7,13 @@ const getTodayDate = () => {
   return new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' });
 };
 
-// LOCAL DATABASE: Loads immediately and renders high-quality article images
+// LOCAL DATABASE: Updated with stable image links (Wikipedia blocks direct hotlinking)
 const localDatabase = [
   {
     id: 1,
     title: "IPC regional chairperson Kaufmann steps down, warns party against internal division",
     date: getTodayDate(),
-    image: "https://images.unsplash.com/photo-1526628953301-3e589a6a1274?auto=format&fit=crop&w=800&q=80", 
+    image: "https://images.unsplash.com/photo-1523995462485-3d171b5c8fa9?auto=format&fit=crop&w=800&q=80", 
     summary: "A major political shift in the region as Kaufmann steps down.",
     fullText: "IPC regional chairperson Kaufmann has officially stepped down from his position today, issuing a strong warning to the party against the dangers of internal division. He emphasized that unity is the only path forward for the party's success in the upcoming national elections.\n\nSpeaking at a press conference in Windhoek, Kaufmann noted that ideological factions have recently threatened the core mission of the party. 'If we cannot stand united in our own halls, we cannot expect the Namibian people to trust us with the nation,' he stated. His resignation triggers a mandatory special election within the party over the next 30 days.",
     sourceLink: "https://namibian.com.na/ipc-regional-chairperson-kaufmann-steps-down-warns-party-against-internal-division/"
@@ -41,7 +41,6 @@ const localDatabase = [
 export default function NewsFeed({ user }) {
   const [selectedArticle, setSelectedArticle] = useState(null);
   
-  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const articlesPerPage = 6;
   const indexOfLastArticle = currentPage * articlesPerPage;
@@ -49,7 +48,6 @@ export default function NewsFeed({ user }) {
   const currentArticles = localDatabase.slice(indexOfFirstArticle, indexOfLastArticle);
   const totalPages = Math.ceil(localDatabase.length / articlesPerPage);
 
-  // AI Chat State
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([
@@ -72,60 +70,84 @@ export default function NewsFeed({ user }) {
 
     const userText = chatInput;
     
-    // Add user message to chat UI
-    setChatMessages(prev => [...prev, { role: 'user', text: userText }]);
+    // UI Update: Add user message and an invisible placeholder for the AI's upcoming stream
+    setChatMessages(prev => [...prev, { role: 'user', text: userText }, { role: 'ai', text: '' }]);
     setChatInput('');
     setIsTyping(true);
 
     try {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) throw new Error("API Key is missing from Vercel environment variables.");
+      if (!apiKey) throw new Error("API Key is missing from Vercel.");
 
-      // 1. DYNAMIC MODEL DISCOVERY: Queries Google API to find an active model for this key
-      let selectedModel = 'gemini-1.5-flash';
-      try {
-        const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-        const listData = await listRes.json();
-        if (listData.models && Array.isArray(listData.models)) {
-          const availableModel = listData.models.find(m => 
-            m.supportedGenerationMethods?.includes('generateContent') &&
-            (m.name.includes('flash') || m.name.includes('pro'))
-          );
-          if (availableModel) {
-            selectedModel = availableModel.name.replace('models/', '');
-          }
-        }
-      } catch (err) {
-        console.warn("Dynamic model lookup skipped, using default model.");
-      }
+      // 1. MEMORY FEATURE: Map the conversation history so the AI remembers context
+      const historyToSend = chatMessages.slice(1).map(msg => ({
+        role: msg.role === 'ai' ? 'model' : 'user',
+        parts: [{ text: msg.text }]
+      }));
 
-      // 2. Prepare Context Prompt
+      // 2. CONTEXT FEATURE: Inject the news into the latest question
       const newsContext = localDatabase.map(a => `Title: ${a.title}\nSummary: ${a.summary}`).join('\n\n');
-      const systemPrompt = `You are a helpful AI news assistant for Namib News Hub. Use the following news articles to answer the user's question accurately.\n\nTODAY'S NEWS:\n${newsContext}\n\nUSER QUESTION: ${userText}`;
-
-      // 3. Make API Call to the verified active model
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: systemPrompt }] }]
-        })
+      historyToSend.push({
+        role: 'user',
+        parts: [{ text: `NEWS CONTEXT:\n${newsContext}\n\nUSER QUESTION: ${userText}` }]
       });
 
-      const data = await response.json();
+      // 3. SPEED FEATURE: Streaming the exact 3.8-flash model requested by your API key
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:streamGenerateContent?alt=sse&key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: historyToSend })
+      });
 
-      if (data.error) {
-        throw new Error(data.error.message);
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error?.message || "API Error");
       }
 
-      const aiReply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't process a response.";
-      
-      // Append single AI message bubble when complete
-      setChatMessages(prev => [...prev, { role: 'ai', text: aiReply }]);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let aiText = "";
+
+      // Turn off bouncing dots—the text is about to start typing instantly
+      setIsTyping(false); 
+
+      // 4. STREAMING LOOP: Reads the words one-by-one as they arrive
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.replace('data: ', '').trim();
+            if (!dataStr || dataStr === 'null') continue; 
+            
+            try {
+              const parsed = JSON.parse(dataStr);
+              const textPart = parsed.candidates?.[0]?.content?.parts?.[0]?.text || "";
+              aiText += textPart;
+              
+              // Updates the chatbox in real-time
+              setChatMessages(prev => {
+                const updated = [...prev];
+                updated[updated.length - 1].text = aiText;
+                return updated;
+              });
+            } catch (err) {
+              // Ignore partial JSON chunks while streaming
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error("AI Error:", error);
-      setChatMessages(prev => [...prev, { role: 'ai', text: `AI Error: ${error.message}` }]);
-    } finally {
+      setChatMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1].text = `AI Error: ${error.message}`;
+        return updated;
+      });
       setIsTyping(false);
     }
   };
@@ -267,7 +289,9 @@ export default function NewsFeed({ user }) {
           
           <div className="flex-1 p-4 overflow-y-auto bg-slate-50 flex flex-col gap-3">
             {chatMessages.map((msg, idx) => {
-              if (!msg.text) return null; // Prevents rendering empty bubbles
+              // Seamless single-bubble UI: hide the bubble entirely if it is empty
+              if (!msg.text) return null; 
+              
               return (
                 <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[85%] p-3 rounded-2xl text-sm shadow-sm ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none whitespace-pre-wrap'}`}>
@@ -277,7 +301,7 @@ export default function NewsFeed({ user }) {
               );
             })}
 
-            {/* Single Loading Bubble */}
+            {/* Bouncing dots show up instantly while waiting for the stream to start */}
             {isTyping && (
               <div className="flex justify-start">
                 <div className="bg-white text-gray-400 border border-gray-200 p-3 rounded-2xl rounded-bl-none text-sm shadow-sm flex gap-1 items-center">
