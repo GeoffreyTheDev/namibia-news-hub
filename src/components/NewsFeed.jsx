@@ -84,8 +84,8 @@ export default function NewsFeed({ user }) {
       const newsContext = localDatabase.map(a => `Title: ${a.title}\nSummary: ${a.summary}`).join('\n\n');
       const systemPrompt = `You are a helpful AI news assistant for Namib News Hub. Use the following news articles to answer the user's question accurately.\n\nTODAY'S NEWS:\n${newsContext}\n\nUSER QUESTION: ${userText}`;
 
-      // FASTEST MODEL (8b-latest) WITH STREAMING (streamGenerateContent)
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b-latest:streamGenerateContent?alt=sse&key=${apiKey}`, {
+      // UPDATED: Using the universal "gemini-1.5-flash-latest" model
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:streamGenerateContent?alt=sse&key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
