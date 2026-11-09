@@ -7,7 +7,7 @@ const getTodayDate = () => {
   return new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' });
 };
 
-// LOCAL DATABASE: Updated with stable image links (Wikipedia blocks direct hotlinking)
+// LOCAL DATABASE: Stable image links and full article contents
 const localDatabase = [
   {
     id: 1,
@@ -70,8 +70,8 @@ export default function NewsFeed({ user }) {
 
     const userText = chatInput;
     
-    // UI Update: Add user message and an invisible placeholder for the AI's upcoming stream
-    setChatMessages(prev => [...prev, { role: 'user', text: userText }, { role: 'ai', text: '' }]);
+    // Add user message to UI instantly
+    setChatMessages(prev => [...prev, { role: 'user', text: userText }]);
     setChatInput('');
     setIsTyping(true);
 
@@ -79,75 +79,40 @@ export default function NewsFeed({ user }) {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       if (!apiKey) throw new Error("API Key is missing from Vercel.");
 
-      // 1. MEMORY FEATURE: Map the conversation history so the AI remembers context
-      const historyToSend = chatMessages.slice(1).map(msg => ({
+      // Build lightweight context payload for speed and smarts
+      const newsContext = localDatabase.map(a => `- ${a.title}: ${a.summary}`).join('\n');
+      
+      const contents = chatMessages.slice(1).map(msg => ({
         role: msg.role === 'ai' ? 'model' : 'user',
         parts: [{ text: msg.text }]
       }));
 
-      // 2. CONTEXT FEATURE: Inject the news into the latest question
-      const newsContext = localDatabase.map(a => `Title: ${a.title}\nSummary: ${a.summary}`).join('\n\n');
-      historyToSend.push({
+      contents.push({
         role: 'user',
         parts: [{ text: `NEWS CONTEXT:\n${newsContext}\n\nUSER QUESTION: ${userText}` }]
       });
 
-      // 3. SPEED FEATURE: Streaming the exact 3.8-flash model requested by your API key
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:streamGenerateContent?alt=sse&key=${apiKey}`, {
+      // LIGHTNING-FAST ENDPOINT: gemini-3.8-flash with direct JSON response
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: historyToSend })
+        body: JSON.stringify({ contents })
       });
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error?.message || "API Error");
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(data.error.message);
       }
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder("utf-8");
-      let aiText = "";
-
-      // Turn off bouncing dots—the text is about to start typing instantly
-      setIsTyping(false); 
-
-      // 4. STREAMING LOOP: Reads the words one-by-one as they arrive
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
-        
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const dataStr = line.replace('data: ', '').trim();
-            if (!dataStr || dataStr === 'null') continue; 
-            
-            try {
-              const parsed = JSON.parse(dataStr);
-              const textPart = parsed.candidates?.[0]?.content?.parts?.[0]?.text || "";
-              aiText += textPart;
-              
-              // Updates the chatbox in real-time
-              setChatMessages(prev => {
-                const updated = [...prev];
-                updated[updated.length - 1].text = aiText;
-                return updated;
-              });
-            } catch (err) {
-              // Ignore partial JSON chunks while streaming
-            }
-          }
-        }
-      }
+      const aiReply = data.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't generate a response.";
+      
+      // Append AI message response instantly
+      setChatMessages(prev => [...prev, { role: 'ai', text: aiReply }]);
     } catch (error) {
       console.error("AI Error:", error);
-      setChatMessages(prev => {
-        const updated = [...prev];
-        updated[updated.length - 1].text = `AI Error: ${error.message}`;
-        return updated;
-      });
+      setChatMessages(prev => [...prev, { role: 'ai', text: `AI Error: ${error.message}` }]);
+    } finally {
       setIsTyping(false);
     }
   };
@@ -289,9 +254,7 @@ export default function NewsFeed({ user }) {
           
           <div className="flex-1 p-4 overflow-y-auto bg-slate-50 flex flex-col gap-3">
             {chatMessages.map((msg, idx) => {
-              // Seamless single-bubble UI: hide the bubble entirely if it is empty
-              if (!msg.text) return null; 
-              
+              if (!msg.text) return null;
               return (
                 <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[85%] p-3 rounded-2xl text-sm shadow-sm ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none whitespace-pre-wrap'}`}>
@@ -301,7 +264,6 @@ export default function NewsFeed({ user }) {
               );
             })}
 
-            {/* Bouncing dots show up instantly while waiting for the stream to start */}
             {isTyping && (
               <div className="flex justify-start">
                 <div className="bg-white text-gray-400 border border-gray-200 p-3 rounded-2xl rounded-bl-none text-sm shadow-sm flex gap-1 items-center">
