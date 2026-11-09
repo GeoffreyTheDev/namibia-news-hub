@@ -7,13 +7,14 @@ const getTodayDate = () => {
   return new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' });
 };
 
-// FAILSAFE DATABASE: If the live API fails, these 12 articles load instantly so the app never breaks.
+// FAILSAFE DATABASE
 const failsafeDatabase = [
   {
     id: 1,
     title: "IPC regional chairperson Kaufmann steps down, warns party against internal division",
     date: getTodayDate(),
-    image: "https://images.unsplash.com/photo-1523995462485-3d171b5c8fa9?auto=format&fit=crop&w=800&q=80", 
+    // UPDATED WITH YOUR REAL IMAGE LINK:
+    image: "https://www.namibian.com.na/wp-content/uploads/2026/11/WhatsApp-Image-2026-11-09-at-10.07.59-AM.jpeg", 
     summary: "A major political shift in the region as Kaufmann steps down.",
     fullText: "IPC regional chairperson Kaufmann has officially stepped down from his position today, issuing a strong warning to the party against the dangers of internal division. He emphasized that unity is the only path forward for the party's success in the upcoming national elections.\n\nSpeaking at a press conference in Windhoek, Kaufmann noted that ideological factions have recently threatened the core mission of the party. 'If we cannot stand united in our own halls, we cannot expect the Namibian people to trust us with the nation,' he stated. His resignation triggers a mandatory special election within the party over the next 30 days.",
     sourceLink: "https://namibian.com.na"
@@ -40,7 +41,7 @@ const failsafeDatabase = [
     id: 4,
     title: "NamPower announces new 50MW Solar Plant in Erongo Region",
     date: getTodayDate(),
-    image: "https://images.unsplash.com/photo-1509391366360-19f9d001d073?auto=format&fit=crop&w=800&q=80", 
+    image: "https://images.unsplash.com/photo-1521618755572-156ae0cdd74d?auto=format&fit=crop&w=800&q=80", 
     summary: "Green energy expansion steps forward as NamPower breaks ground.",
     fullText: "NamPower has officially broken ground on a new state-of-the-art 50-megawatt solar photovoltaic power plant in the Erongo Region. This multi-million dollar project is part of Namibia's ambitious strategy to achieve complete energy independence and reduce reliance on regional imports.",
     sourceLink: "https://namibian.com.na"
@@ -124,7 +125,6 @@ export default function NewsFeed({ user }) {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedArticle, setSelectedArticle] = useState(null);
   
-  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const articlesPerPage = 6;
   const indexOfLastArticle = currentPage * articlesPerPage;
@@ -132,7 +132,6 @@ export default function NewsFeed({ user }) {
   const currentArticles = articles.slice(indexOfFirstArticle, indexOfLastArticle);
   const totalPages = Math.ceil(articles.length / articlesPerPage);
 
-  // 1. BULLETPROOF FETCH: Tries live API first, instantly falls back to local data if it fails
   useEffect(() => {
     const fetchNews = async () => {
       try {
@@ -155,7 +154,6 @@ export default function NewsFeed({ user }) {
     fetchNews();
   }, []);
 
-  // AI Chat State
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([
@@ -196,7 +194,6 @@ export default function NewsFeed({ user }) {
         parts: [{ text: `NEWS CONTEXT:\n${newsContext}\n\nUSER QUESTION: ${userText}` }]
       });
 
-      // 2. STABLE AI ENDPOINT: Using gemini-pro to bypass "Not Found" and "High Demand" blocks
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:streamGenerateContent?alt=sse&key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -236,9 +233,7 @@ export default function NewsFeed({ user }) {
                 updated[updated.length - 1].text = aiText;
                 return updated;
               });
-            } catch (err) {
-              // Ignore partial chunks
-            }
+            } catch (err) {}
           }
         }
       }
@@ -303,6 +298,10 @@ export default function NewsFeed({ user }) {
                   src={article.image} 
                   alt={article.title} 
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=800&q=80";
+                  }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               </div>
@@ -364,7 +363,15 @@ export default function NewsFeed({ user }) {
               <FaTimes size={20} />
             </button>
             <div className="h-72 relative flex-shrink-0 bg-gray-900">
-               <img src={selectedArticle.image} alt={selectedArticle.title} className="w-full h-full object-cover opacity-90" />
+               <img 
+                 src={selectedArticle.image} 
+                 alt={selectedArticle.title} 
+                 className="w-full h-full object-cover opacity-90"
+                 onError={(e) => {
+                   e.target.onerror = null;
+                   e.target.src = "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=800&q=80";
+                 }}
+               />
                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
                <h2 className="absolute bottom-6 left-8 right-8 text-2xl md:text-3xl font-extrabold text-white leading-tight drop-shadow-md">
                  {selectedArticle.title}
