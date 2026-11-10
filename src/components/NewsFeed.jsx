@@ -1,19 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { FaRobot, FaTimes, FaPaperPlane, FaChevronLeft, FaChevronRight, FaPlayCircle, FaGlobe, FaSpinner } from 'react-icons/fa';
+import { FaRobot, FaTimes, FaPaperPlane, FaChevronLeft, FaChevronRight, FaPlayCircle, FaGlobe } from 'react-icons/fa';
 
 const getTodayDate = () => {
   return new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' });
 };
 
-// NBC DIGITAL NEWS DATABASE: Curated with official NBC news video embeds and reports
+// NBC DIGITAL NEWS DATABASE: Static database to guarantee stability and prevent API structure crashes
 const nbcDatabase = [
   {
     id: 1,
     title: "LPM criticises government's economic management",
     date: getTodayDate(),
-    // Official NBC YouTube Embed ID
     videoId: "6ebkQmUL-dE", 
     image: "https://img.youtube.com/vi/6ebkQmUL-dE/hqdefault.jpg",
     summary: "Landless People's Movement (LPM) raises severe concerns regarding national economic policies.",
@@ -133,6 +132,8 @@ const nbcDatabase = [
 ];
 
 export default function NewsFeed({ user }) {
+  // Use the static database directly to guarantee the correct video data structure
+  const [articles, setArticles] = useState(nbcDatabase);
   const [selectedArticle, setSelectedArticle] = useState(null);
   
   // Pagination State (6 articles per page, 12 total)
@@ -140,8 +141,8 @@ export default function NewsFeed({ user }) {
   const articlesPerPage = 6;
   const indexOfLastArticle = currentPage * articlesPerPage;
   const indexOfFirstArticle = indexOfLastArticle - articlesPerPage;
-  const currentArticles = nbcDatabase.slice(indexOfFirstArticle, indexOfLastArticle);
-  const totalPages = Math.ceil(nbcDatabase.length / articlesPerPage);
+  const currentArticles = articles.slice(indexOfFirstArticle, indexOfLastArticle);
+  const totalPages = Math.ceil(articles.length / articlesPerPage);
 
   // AI Chat State
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -173,7 +174,7 @@ export default function NewsFeed({ user }) {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       if (!apiKey) throw new Error("API Key is missing from Vercel.");
 
-      const newsContext = nbcDatabase.map(a => `- ${a.title}: ${a.summary}`).join('\n');
+      const newsContext = articles.map(a => `- ${a.title}: ${a.summary}`).join('\n');
       const historyToSend = chatMessages.slice(1).map(msg => ({
         role: msg.role === 'ai' ? 'model' : 'user',
         parts: [{ text: msg.text }]
@@ -372,20 +373,6 @@ export default function NewsFeed({ user }) {
                  {selectedArticle.title}
                </h2>
                <p className="whitespace-pre-wrap mb-8 text-base md:text-lg text-gray-600">{selectedArticle.fullText}</p>
-               
-               <div className="flex flex-wrap gap-4 items-center">
-                 <a 
-                   href={selectedArticle.sourceLink} 
-                   target="_blank" 
-                   rel="noopener noreferrer"
-                   className="inline-flex items-center gap-2 bg-red-600 text-white font-bold py-3 px-6 rounded-xl hover:bg-red-700 transition-colors shadow-md text-sm"
-                 >
-                   Open on NBC YouTube Channel <FaExternalLinkAlt size={12}/>
-                 </a>
-                 <span className="text-xs text-gray-500 font-medium">
-                   💡 Tip: Have questions about this clip? Open the AI chat widget in the bottom right!
-                 </span>
-               </div>
             </div>
           </div>
         </div>
