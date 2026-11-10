@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { FaRobot, FaTimes, FaPaperPlane, FaChevronLeft, FaChevronRight, FaPlayCircle, FaGlobe, FaMagic } from 'react-icons/fa';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const getTodayDate = () => {
   return new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' });
@@ -192,22 +191,29 @@ export default function NewsFeed({ user }) {
 
       const finalPrompt = `${systemPrompt}CONVERSATION HISTORY:\n${conversationHistory}\n\nUser: ${userText}\nAI:`;
 
-      const genAI = new GoogleGenerativeAI(cleanApiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      // Using gemini-pro via stable v1 endpoint to guarantee compatibility
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${cleanApiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: finalPrompt }] }]
+        })
+      });
 
-      const result = await model.generateContentStream(finalPrompt);
-
-      let aiText = "";
-      setIsTyping(false);
-
-      for await (const chunk of result.stream) {
-        aiText += chunk.text();
-        setChatMessages(prev => {
-          const updated = [...prev];
-          updated[updated.length - 1].text = aiText;
-          return updated;
-        });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error?.message || "API Request Failed");
       }
+
+      const data = await response.json();
+      const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
+
+      setIsTyping(false);
+      setChatMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1].text = aiText;
+        return updated;
+      });
 
     } catch (error) {
       console.error("AI Error:", error);
@@ -479,7 +485,7 @@ export default function NewsFeed({ user }) {
             <form onSubmit={handleSendMessage} className="p-3 bg-white border-t border-gray-100 flex gap-2">
               <input 
                 type="text" 
-                value={chatInput}
+            value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 placeholder="Ask about NBC reports..."
                 className="flex-1 bg-slate-100 text-sm rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow"
