@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { FaRobot, FaTimes, FaPaperPlane, FaChevronLeft, FaChevronRight, FaPlayCircle, FaGlobe, FaSpinner, FaMagic } from 'react-icons/fa';
+import { FaRobot, FaTimes, FaPaperPlane, FaChevronLeft, FaChevronRight, FaPlayCircle, FaGlobe } from 'react-icons/fa';
 
 const getTodayDate = () => {
   return new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' });
@@ -151,7 +151,6 @@ export default function NewsFeed({ user }) {
   ]);
   const [isTyping, setIsTyping] = useState(false);
   
-  // Dual refs for ensuring scrolling works both in the floating chat and the modal side-panel
   const modalMessagesEndRef = useRef(null);
   const floatingMessagesEndRef = useRef(null);
 
@@ -183,7 +182,6 @@ export default function NewsFeed({ user }) {
         parts: [{ text: msg.text }]
       }));
 
-      // Smarter Context: Tell the AI exactly which video the user is currently watching
       let activeContextPrompt = `NBC NEWS CONTEXT:\n${newsContext}\n\nUSER QUESTION: ${userText}`;
       if (selectedArticle) {
         activeContextPrompt = `THE USER IS CURRENTLY WATCHING THIS VIDEO:\nTitle: ${selectedArticle.title}\nFull Text: ${selectedArticle.fullText}\n\nAll NBC News:\n${newsContext}\n\nUSER QUESTION: ${userText}`;
@@ -194,7 +192,8 @@ export default function NewsFeed({ user }) {
         parts: [{ text: activeContextPrompt }]
       });
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:streamGenerateContent?alt=sse&key=${apiKey}`, {
+      // UPDATED TO gemini-1.5-flash
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?alt=sse&key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: historyToSend })
@@ -350,12 +349,11 @@ export default function NewsFeed({ user }) {
         )}
       </main>
 
-      {/* NEW SIDE-BY-SIDE VIDEO & AI MODAL */}
+      {/* SIDE-BY-SIDE VIDEO & AI MODAL */}
       {selectedArticle && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6 bg-blue-900/80 backdrop-blur-md transition-opacity">
           <div className="bg-white rounded-2xl w-full max-w-7xl max-h-[95vh] overflow-hidden flex flex-col lg:flex-row shadow-2xl animate-fade-in relative">
             
-            {/* Mobile Close Button (Hidden on Desktop) */}
             <button 
               onClick={() => setSelectedArticle(null)}
               className="absolute top-4 right-4 z-50 bg-black/70 hover:bg-red-500 text-white p-3 rounded-full transition-colors backdrop-blur-md lg:hidden"
@@ -365,7 +363,6 @@ export default function NewsFeed({ user }) {
 
             {/* LEFT COLUMN: Video Player & Highlighted Text */}
             <div className="w-full lg:w-2/3 flex flex-col overflow-y-auto bg-gray-100 border-r border-gray-200">
-              {/* Sticky Video Player */}
               <div className="w-full aspect-video bg-black flex-shrink-0 sticky top-0 z-20 shadow-md">
                 <iframe 
                   src={`https://www.youtube.com/embed/${selectedArticle.videoId}?autoplay=1`} 
@@ -376,7 +373,6 @@ export default function NewsFeed({ user }) {
                 ></iframe>
               </div>
 
-              {/* Highlighted Reading Area */}
               <div className="p-6 md:p-10 flex-grow bg-slate-50">
                  <div className="bg-white border-l-4 border-red-600 p-8 rounded-xl shadow-md relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
@@ -403,7 +399,6 @@ export default function NewsFeed({ user }) {
 
             {/* RIGHT COLUMN: Dedicated Embedded AI Chat Sidebar */}
             <div className="w-full lg:w-1/3 flex flex-col h-[50vh] lg:h-auto bg-white">
-              {/* Chat Header */}
               <div className="bg-gradient-to-r from-blue-700 to-blue-600 p-5 text-white flex justify-between items-center shadow-md z-10">
                 <div className="flex items-center gap-3">
                   <div className="bg-white/20 p-2.5 rounded-xl backdrop-blur-sm shadow-inner">
@@ -411,12 +406,11 @@ export default function NewsFeed({ user }) {
                   </div>
                   <div>
                     <h3 className="font-bold text-lg leading-tight flex items-center gap-1.5">
-                      News AI <FaMagic size={12} className="text-yellow-300" />
+                      News AI 
                     </h3>
                     <p className="text-xs text-blue-100 font-medium">Ask about this video report</p>
                   </div>
                 </div>
-                {/* Desktop Close Button */}
                 <button 
                   onClick={() => setSelectedArticle(null)}
                   className="hidden lg:flex bg-blue-800/50 hover:bg-red-500 hover:scale-110 text-white p-2.5 rounded-full transition-all shadow-sm"
@@ -425,7 +419,6 @@ export default function NewsFeed({ user }) {
                 </button>
               </div>
               
-              {/* Chat Messages Area */}
               <div className="flex-1 p-5 overflow-y-auto bg-slate-50 flex flex-col gap-4">
                 {chatMessages.map((msg, idx) => {
                   if (!msg.text) return null;
@@ -449,7 +442,6 @@ export default function NewsFeed({ user }) {
                 <div ref={modalMessagesEndRef} />
               </div>
               
-              {/* Chat Input Area */}
               <form onSubmit={handleSendMessage} className="p-4 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
                 <div className="flex gap-2">
                   <input 
