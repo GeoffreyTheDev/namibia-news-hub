@@ -176,12 +176,9 @@ export default function NewsFeed({ user }) {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       if (!apiKey) throw new Error("API Key is missing from Vercel.");
 
-      // REMOVE invisible spaces from the Vercel API Key which can break the URL
       const cleanApiKey = apiKey.trim();
-
       const newsContext = articles.map(a => `- ${a.title}: ${a.summary}`).join('\n');
       
-      // Compile the recent conversation history into a safe string to prevent Google array format crashes
       const conversationHistory = chatMessages.slice(1)
         .filter(msg => msg.text && !msg.text.includes("AI Error"))
         .map(msg => `${msg.role === 'user' ? 'User' : 'AI'}: ${msg.text}`)
@@ -192,15 +189,14 @@ export default function NewsFeed({ user }) {
         systemPrompt = `You are a helpful NBC News AI assistant. The user is currently watching this video report:\nTitle: ${selectedArticle.title}\nFull Text: ${selectedArticle.fullText}\n\nOTHER HEADLINES:\n${newsContext}\n\n`;
       }
 
-      // We combine everything into a single, clean user prompt to bypass Google's strict history rules
       const finalPrompt = `${systemPrompt}CONVERSATION HISTORY:\n${conversationHistory}\n\nUser: ${userText}\nAI:`;
 
       const payload = {
         contents: [{ role: 'user', parts: [{ text: finalPrompt }] }]
       };
 
-      // Upgraded to the fully stable v1 API and gemini-1.5-flash
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:streamGenerateContent?alt=sse&key=${cleanApiKey}`, {
+      // FIXED: Restored to v1beta which Google requires for gemini-1.5-flash
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?alt=sse&key=${cleanApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
