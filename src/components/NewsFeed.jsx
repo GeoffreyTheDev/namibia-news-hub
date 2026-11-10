@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 import { FaRobot, FaTimes, FaPaperPlane, FaChevronLeft, FaChevronRight, FaPlayCircle, FaGlobe, FaMagic } from 'react-icons/fa';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const getTodayDate = () => {
   return new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' });
@@ -174,7 +175,7 @@ export default function NewsFeed({ user }) {
 
     try {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) throw new Error("API Key is missing from Vercel.");
+      if (!apiKey) throw new Error("API Key is missing from Vercel environment variables.");
 
       const cleanApiKey = apiKey.trim();
       const newsContext = articles.map(a => `- ${a.title}: ${a.summary}`).join('\n');
@@ -191,54 +192,23 @@ export default function NewsFeed({ user }) {
 
       const finalPrompt = `${systemPrompt}CONVERSATION HISTORY:\n${conversationHistory}\n\nUser: ${userText}\nAI:`;
 
-      const payload = {
-        contents: [{ role: 'user', parts: [{ text: finalPrompt }] }]
-      };
+      const genAI = new GoogleGenerativeAI(cleanApiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-      // FIXED: Restored to v1beta which Google requires for gemini-1.5-flash
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?alt=sse&key=${cleanApiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      const result = await model.generateContentStream(finalPrompt);
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error?.message || "API Request Failed");
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder("utf-8");
       let aiText = "";
-
       setIsTyping(false);
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
-        
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const dataStr = line.replace('data: ', '').trim();
-            if (!dataStr || dataStr === 'null') continue; 
-            
-            try {
-              const parsed = JSON.parse(dataStr);
-              const textPart = parsed.candidates?.[0]?.content?.parts?.[0]?.text || "";
-              aiText += textPart;
-              
-              setChatMessages(prev => {
-                const updated = [...prev];
-                updated[updated.length - 1].text = aiText;
-                return updated;
-              });
-            } catch (err) {}
-          }
-        }
+      for await (const chunk of result.stream) {
+        aiText += chunk.text();
+        setChatMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1].text = aiText;
+          return updated;
+        });
       }
+
     } catch (error) {
       console.error("AI Error:", error);
       setChatMessages(prev => {
