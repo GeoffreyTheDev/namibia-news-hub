@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { FaRobot, FaTimes, FaPaperPlane, FaChevronLeft, FaChevronRight, FaPlayCircle, FaGlobe } from 'react-icons/fa';
+import { FaRobot, FaTimes, FaPaperPlane, FaChevronLeft, FaChevronRight, FaPlayCircle, FaGlobe, FaSpinner, FaMagic } from 'react-icons/fa';
 
 const getTodayDate = () => {
   return new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' });
 };
 
-// NBC DIGITAL NEWS DATABASE: Static database to guarantee stability and prevent API structure crashes
+// NBC DIGITAL NEWS DATABASE
 const nbcDatabase = [
   {
     id: 1,
@@ -132,11 +132,10 @@ const nbcDatabase = [
 ];
 
 export default function NewsFeed({ user }) {
-  // Use the static database directly to guarantee the correct video data structure
   const [articles, setArticles] = useState(nbcDatabase);
   const [selectedArticle, setSelectedArticle] = useState(null);
   
-  // Pagination State (6 articles per page, 12 total)
+  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const articlesPerPage = 6;
   const indexOfLastArticle = currentPage * articlesPerPage;
@@ -148,14 +147,18 @@ export default function NewsFeed({ user }) {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([
-    { role: 'ai', text: 'Hi Geoffrey! I am your NBC News AI assistant. Ask me anything about today\'s video reports!' }
+    { role: 'ai', text: 'Hi Geoffrey! I am your NBC News AI. Ask me anything about today\'s video reports!' }
   ]);
   const [isTyping, setIsTyping] = useState(false);
-  const messagesEndRef = useRef(null);
+  
+  // Dual refs for ensuring scrolling works both in the floating chat and the modal side-panel
+  const modalMessagesEndRef = useRef(null);
+  const floatingMessagesEndRef = useRef(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages, isTyping]);
+    modalMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    floatingMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages, isTyping, selectedArticle]);
 
   const handleLogout = () => {
     signOut(auth);
@@ -180,9 +183,15 @@ export default function NewsFeed({ user }) {
         parts: [{ text: msg.text }]
       }));
 
+      // Smarter Context: Tell the AI exactly which video the user is currently watching
+      let activeContextPrompt = `NBC NEWS CONTEXT:\n${newsContext}\n\nUSER QUESTION: ${userText}`;
+      if (selectedArticle) {
+        activeContextPrompt = `THE USER IS CURRENTLY WATCHING THIS VIDEO:\nTitle: ${selectedArticle.title}\nFull Text: ${selectedArticle.fullText}\n\nAll NBC News:\n${newsContext}\n\nUSER QUESTION: ${userText}`;
+      }
+
       historyToSend.push({
         role: 'user',
-        parts: [{ text: `NBC NEWS REPORTS CONTEXT:\n${newsContext}\n\nUSER QUESTION: ${userText}` }]
+        parts: [{ text: activeContextPrompt }]
       });
 
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:streamGenerateContent?alt=sse&key=${apiKey}`, {
@@ -212,7 +221,7 @@ export default function NewsFeed({ user }) {
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             const dataStr = line.replace('data: ', '').trim();
-            if (!dataStr || !dataStr.length || dataStr === 'null') continue; 
+            if (!dataStr || dataStr === 'null') continue; 
             
             try {
               const parsed = JSON.parse(dataStr);
@@ -341,111 +350,199 @@ export default function NewsFeed({ user }) {
         )}
       </main>
 
-      {/* Video Streaming & Details Modal */}
+      {/* NEW SIDE-BY-SIDE VIDEO & AI MODAL */}
       {selectedArticle && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-blue-900/60 backdrop-blur-sm transition-opacity">
-          <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col shadow-2xl animate-fade-in relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6 bg-blue-900/80 backdrop-blur-md transition-opacity">
+          <div className="bg-white rounded-2xl w-full max-w-7xl max-h-[95vh] overflow-hidden flex flex-col lg:flex-row shadow-2xl animate-fade-in relative">
+            
+            {/* Mobile Close Button (Hidden on Desktop) */}
             <button 
               onClick={() => setSelectedArticle(null)}
-              className="absolute top-4 right-4 z-20 bg-black/70 hover:bg-red-500 text-white p-3 rounded-full transition-colors backdrop-blur-md"
+              className="absolute top-4 right-4 z-50 bg-black/70 hover:bg-red-500 text-white p-3 rounded-full transition-colors backdrop-blur-md lg:hidden"
             >
               <FaTimes size={18} />
             </button>
-            
-            {/* Embedded YouTube Player */}
-            <div className="w-full aspect-video bg-black relative flex-shrink-0">
-              <iframe 
-                src={`https://www.youtube.com/embed/${selectedArticle.videoId}?autoplay=1`} 
-                title={selectedArticle.title}
-                className="w-full h-full border-0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              ></iframe>
+
+            {/* LEFT COLUMN: Video Player & Highlighted Text */}
+            <div className="w-full lg:w-2/3 flex flex-col overflow-y-auto bg-gray-100 border-r border-gray-200">
+              {/* Sticky Video Player */}
+              <div className="w-full aspect-video bg-black flex-shrink-0 sticky top-0 z-20 shadow-md">
+                <iframe 
+                  src={`https://www.youtube.com/embed/${selectedArticle.videoId}?autoplay=1`} 
+                  title={selectedArticle.title}
+                  className="w-full h-full border-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                ></iframe>
+              </div>
+
+              {/* Highlighted Reading Area */}
+              <div className="p-6 md:p-10 flex-grow bg-slate-50">
+                 <div className="bg-white border-l-4 border-red-600 p-8 rounded-xl shadow-md relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                       <FaGlobe size={150} />
+                    </div>
+                    
+                    <div className="flex items-center justify-between mb-4 relative z-10">
+                      <p className="text-xs text-red-600 font-extrabold tracking-widest uppercase flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span> NBC Digital News
+                      </p>
+                      <span className="text-sm font-bold text-gray-400">{selectedArticle.date}</span>
+                    </div>
+                    
+                    <h2 className="text-2xl md:text-3xl font-black text-gray-900 leading-tight mb-6 relative z-10">
+                      {selectedArticle.title}
+                    </h2>
+                    
+                    <p className="whitespace-pre-wrap text-lg md:text-xl text-gray-700 leading-relaxed font-medium relative z-10">
+                      {selectedArticle.fullText}
+                    </p>
+                 </div>
+              </div>
             </div>
 
-            <div className="p-8 md:p-10 overflow-y-auto text-gray-700 leading-relaxed">
-               <div className="flex items-center justify-between mb-4">
-                 <p className="text-xs text-red-600 font-extrabold tracking-widest uppercase flex items-center gap-1.5">
-                   <span className="w-2 h-2 rounded-full bg-red-600"></span> NBC Digital News Broadcast • {selectedArticle.date}
-                 </p>
-               </div>
-               <h2 className="text-xl md:text-2xl font-extrabold text-gray-900 leading-snug mb-4">
-                 {selectedArticle.title}
-               </h2>
-               <p className="whitespace-pre-wrap mb-8 text-base md:text-lg text-gray-600">{selectedArticle.fullText}</p>
+            {/* RIGHT COLUMN: Dedicated Embedded AI Chat Sidebar */}
+            <div className="w-full lg:w-1/3 flex flex-col h-[50vh] lg:h-auto bg-white">
+              {/* Chat Header */}
+              <div className="bg-gradient-to-r from-blue-700 to-blue-600 p-5 text-white flex justify-between items-center shadow-md z-10">
+                <div className="flex items-center gap-3">
+                  <div className="bg-white/20 p-2.5 rounded-xl backdrop-blur-sm shadow-inner">
+                    <FaRobot size={22} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg leading-tight flex items-center gap-1.5">
+                      News AI <FaMagic size={12} className="text-yellow-300" />
+                    </h3>
+                    <p className="text-xs text-blue-100 font-medium">Ask about this video report</p>
+                  </div>
+                </div>
+                {/* Desktop Close Button */}
+                <button 
+                  onClick={() => setSelectedArticle(null)}
+                  className="hidden lg:flex bg-blue-800/50 hover:bg-red-500 hover:scale-110 text-white p-2.5 rounded-full transition-all shadow-sm"
+                >
+                  <FaTimes size={16} />
+                </button>
+              </div>
+              
+              {/* Chat Messages Area */}
+              <div className="flex-1 p-5 overflow-y-auto bg-slate-50 flex flex-col gap-4">
+                {chatMessages.map((msg, idx) => {
+                  if (!msg.text) return null;
+                  return (
+                    <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[85%] p-3.5 rounded-2xl text-sm shadow-sm leading-relaxed ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none whitespace-pre-wrap'}`}>
+                        {msg.text}
+                      </div>
+                    </div>
+                  );
+                })}
+                {isTyping && (
+                  <div className="flex justify-start">
+                    <div className="bg-white text-gray-400 border border-gray-200 p-4 rounded-2xl rounded-bl-none text-sm shadow-sm flex gap-1.5 items-center">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
+                    </div>
+                  </div>
+                )}
+                <div ref={modalMessagesEndRef} />
+              </div>
+              
+              {/* Chat Input Area */}
+              <form onSubmit={handleSendMessage} className="p-4 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Type to ask AI about this news..."
+                    className="flex-1 bg-slate-100 text-sm font-medium rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow border border-transparent focus:border-blue-300"
+                  />
+                  <button 
+                    type="submit" 
+                    disabled={isTyping || !chatInput.trim()}
+                    className="bg-blue-600 text-white p-2 w-12 rounded-xl flex items-center justify-center hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-md hover:shadow-lg"
+                  >
+                    <FaPaperPlane size={16} />
+                  </button>
+                </div>
+                <p className="text-center text-[10px] text-gray-400 mt-2 font-medium">Powered by Gemini AI</p>
+              </form>
             </div>
           </div>
         </div>
       )}
 
-      {/* Floating AI Chatbox */}
-      <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end">
-        <div className={`bg-white rounded-2xl shadow-2xl border border-blue-100 overflow-hidden transition-all duration-300 transform origin-bottom-right mb-4 flex flex-col w-80 sm:w-96 ${isChatOpen ? 'scale-100 opacity-100 h-[28rem]' : 'scale-0 opacity-0 h-0'}`}>
-          <div className="bg-blue-600 p-4 text-white flex justify-between items-center shadow-md">
-            <div className="flex items-center gap-2">
-              <FaRobot size={20} />
-              <h3 className="font-bold">Ask the News AI</h3>
+      {/* Floating AI Chatbox (Hidden when Article Modal is Open) */}
+      {!selectedArticle && (
+        <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end">
+          <div className={`bg-white rounded-2xl shadow-2xl border border-blue-100 overflow-hidden transition-all duration-300 transform origin-bottom-right mb-4 flex flex-col w-80 sm:w-96 ${isChatOpen ? 'scale-100 opacity-100 h-[28rem]' : 'scale-0 opacity-0 h-0'}`}>
+            <div className="bg-blue-600 p-4 text-white flex justify-between items-center shadow-md">
+              <div className="flex items-center gap-2">
+                <FaRobot size={20} />
+                <h3 className="font-bold">Ask the News AI</h3>
+              </div>
+              <button onClick={() => setIsChatOpen(false)} className="hover:text-blue-200 transition-colors">
+                <FaTimes />
+              </button>
             </div>
-            <button onClick={() => setIsChatOpen(false)} className="hover:text-blue-200 transition-colors">
-              <FaTimes />
-            </button>
-          </div>
-          
-          <div className="flex-1 p-4 overflow-y-auto bg-slate-50 flex flex-col gap-3">
-            {chatMessages.map((msg, idx) => {
-              if (!msg.text) return null;
-              return (
-                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] p-3 rounded-2xl text-sm shadow-sm ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none whitespace-pre-wrap'}`}>
-                    {msg.text}
+            
+            <div className="flex-1 p-4 overflow-y-auto bg-slate-50 flex flex-col gap-3">
+              {chatMessages.map((msg, idx) => {
+                if (!msg.text) return null;
+                return (
+                  <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[85%] p-3 rounded-2xl text-sm shadow-sm ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none whitespace-pre-wrap'}`}>
+                      {msg.text}
+                    </div>
+                  </div>
+                );
+              })}
+              {isTyping && (
+                <div className="flex justify-start">
+                  <div className="bg-white text-gray-400 border border-gray-200 p-3 rounded-2xl rounded-bl-none text-sm shadow-sm flex gap-1 items-center">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
                   </div>
                 </div>
-              );
-            })}
+              )}
+              <div ref={floatingMessagesEndRef} />
+            </div>
 
-            {isTyping && (
-              <div className="flex justify-start">
-                <div className="bg-white text-gray-400 border border-gray-200 p-3 rounded-2xl rounded-bl-none text-sm shadow-sm flex gap-1 items-center">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
+            <form onSubmit={handleSendMessage} className="p-3 bg-white border-t border-gray-100 flex gap-2">
+              <input 
+                type="text" 
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Ask about NBC reports..."
+                className="flex-1 bg-slate-100 text-sm rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow"
+              />
+              <button 
+                type="submit" 
+                disabled={isTyping || !chatInput.trim()}
+                className="bg-blue-600 text-white p-2 w-10 h-10 rounded-full flex items-center justify-center hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              >
+                <FaPaperPlane size={14} />
+              </button>
+            </form>
           </div>
 
-          <form onSubmit={handleSendMessage} className="p-3 bg-white border-t border-gray-100 flex gap-2">
-            <input 
-              type="text" 
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              placeholder="Ask about NBC reports..."
-              className="flex-1 bg-slate-100 text-sm rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow"
-            />
+          <div className={`flex items-center gap-4 transition-all duration-300 ${isChatOpen ? 'opacity-0 translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
+            <div className="bg-gradient-to-r from-blue-700 to-blue-500 text-white px-5 py-3 rounded-full font-black shadow-2xl text-sm flex items-center gap-2 animate-bounce border-2 border-white cursor-pointer" onClick={() => setIsChatOpen(true)}>
+              CLICK HERE FOR AI 
+              <FaChevronRight size={12} />
+            </div>
             <button 
-              type="submit" 
-              disabled={isTyping || !chatInput.trim()}
-              className="bg-blue-600 text-white p-2 w-10 h-10 rounded-full flex items-center justify-center hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              onClick={() => setIsChatOpen(!isChatOpen)}
+              className="bg-gradient-to-br from-blue-600 to-blue-800 text-white p-5 rounded-full shadow-2xl hover:scale-110 transition-transform duration-300 flex items-center justify-center border-4 border-white"
             >
-              <FaPaperPlane size={14} />
+              <FaRobot size={32} />
             </button>
-          </form>
-        </div>
-
-        <div className={`flex items-center gap-4 transition-all duration-300 ${isChatOpen ? 'opacity-0 translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
-          <div className="bg-gradient-to-r from-blue-700 to-blue-500 text-white px-5 py-3 rounded-full font-black shadow-2xl text-sm flex items-center gap-2 animate-bounce border-2 border-white cursor-pointer" onClick={() => setIsChatOpen(true)}>
-            CLICK HERE FOR AI 
-            <FaChevronRight size={12} />
           </div>
-          <button 
-            onClick={() => setIsChatOpen(!isChatOpen)}
-            className="bg-gradient-to-br from-blue-600 to-blue-800 text-white p-5 rounded-full shadow-2xl hover:scale-110 transition-transform duration-300 flex items-center justify-center border-4 border-white"
-          >
-            <FaRobot size={32} />
-          </button>
         </div>
-      </div>
+      )}
     </div>
   );
 }
