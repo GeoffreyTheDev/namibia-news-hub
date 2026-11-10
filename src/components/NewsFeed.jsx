@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { FaRobot, FaTimes, FaPaperPlane, FaChevronLeft, FaChevronRight, FaPlayCircle, FaGlobe } from 'react-icons/fa';
+import { FaRobot, FaTimes, FaPaperPlane, FaChevronLeft, FaChevronRight, FaPlayCircle, FaGlobe, FaMagic } from 'react-icons/fa';
 
 const getTodayDate = () => {
   return new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' });
@@ -167,7 +167,7 @@ export default function NewsFeed({ user }) {
     e.preventDefault();
     if (!chatInput.trim()) return;
 
-    const userText = chatInput;
+    const userText = chatInput.trim();
     setChatMessages(prev => [...prev, { role: 'user', text: userText }, { role: 'ai', text: '' }]);
     setChatInput('');
     setIsTyping(true);
@@ -176,32 +176,39 @@ export default function NewsFeed({ user }) {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       if (!apiKey) throw new Error("API Key is missing from Vercel.");
 
-      const newsContext = articles.map(a => `- ${a.title}: ${a.summary}`).join('\n');
-      const historyToSend = chatMessages.slice(1).map(msg => ({
-        role: msg.role === 'ai' ? 'model' : 'user',
-        parts: [{ text: msg.text }]
-      }));
+      // REMOVE invisible spaces from the Vercel API Key which can break the URL
+      const cleanApiKey = apiKey.trim();
 
-      let activeContextPrompt = `NBC NEWS CONTEXT:\n${newsContext}\n\nUSER QUESTION: ${userText}`;
+      const newsContext = articles.map(a => `- ${a.title}: ${a.summary}`).join('\n');
+      
+      // Compile the recent conversation history into a safe string to prevent Google array format crashes
+      const conversationHistory = chatMessages.slice(1)
+        .filter(msg => msg.text && !msg.text.includes("AI Error"))
+        .map(msg => `${msg.role === 'user' ? 'User' : 'AI'}: ${msg.text}`)
+        .join('\n\n');
+
+      let systemPrompt = `You are a helpful NBC News AI assistant.\n\nTODAY'S NEWS:\n${newsContext}\n\n`;
       if (selectedArticle) {
-        activeContextPrompt = `THE USER IS CURRENTLY WATCHING THIS VIDEO:\nTitle: ${selectedArticle.title}\nFull Text: ${selectedArticle.fullText}\n\nAll NBC News:\n${newsContext}\n\nUSER QUESTION: ${userText}`;
+        systemPrompt = `You are a helpful NBC News AI assistant. The user is currently watching this video report:\nTitle: ${selectedArticle.title}\nFull Text: ${selectedArticle.fullText}\n\nOTHER HEADLINES:\n${newsContext}\n\n`;
       }
 
-      historyToSend.push({
-        role: 'user',
-        parts: [{ text: activeContextPrompt }]
-      });
+      // We combine everything into a single, clean user prompt to bypass Google's strict history rules
+      const finalPrompt = `${systemPrompt}CONVERSATION HISTORY:\n${conversationHistory}\n\nUser: ${userText}\nAI:`;
 
-      // UPDATED TO gemini-1.5-flash
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?alt=sse&key=${apiKey}`, {
+      const payload = {
+        contents: [{ role: 'user', parts: [{ text: finalPrompt }] }]
+      };
+
+      // Upgraded to the fully stable v1 API and gemini-1.5-flash
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:streamGenerateContent?alt=sse&key=${cleanApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: historyToSend })
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
         const errData = await response.json();
-        throw new Error(errData.error?.message || "API Error");
+        throw new Error(errData.error?.message || "API Request Failed");
       }
 
       const reader = response.body.getReader();
@@ -406,7 +413,7 @@ export default function NewsFeed({ user }) {
                   </div>
                   <div>
                     <h3 className="font-bold text-lg leading-tight flex items-center gap-1.5">
-                      News AI 
+                      News AI <FaMagic size={12} className="text-yellow-300" />
                     </h3>
                     <p className="text-xs text-blue-100 font-medium">Ask about this video report</p>
                   </div>
