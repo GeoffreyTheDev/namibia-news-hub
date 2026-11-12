@@ -19,7 +19,7 @@ export default async function handler(req, res) {
         { role: "system", content: "You are a helpful AI news assistant." },
         { role: "user", content: prompt }
       ],
-      // Updated to Groq's active model
+      // THIS IS THE CRITICAL LINE:
       model: "llama-3.1-8b-instant", 
     });
 
