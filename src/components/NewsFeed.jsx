@@ -174,7 +174,9 @@ export default function NewsFeed({ user }) {
 
     try {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) throw new Error("API Key is missing from Vercel environment variables.");
+      if (!apiKey) {
+        throw new Error("VITE_GEMINI_API_KEY is missing in Vercel. Please add your AIza... key under Vercel Settings > Environment Variables.");
+      }
 
       const cleanApiKey = apiKey.trim();
       const newsContext = articles.map(a => `- ${a.title}: ${a.summary}`).join('\n');
@@ -184,15 +186,15 @@ export default function NewsFeed({ user }) {
         .map(msg => `${msg.role === 'user' ? 'User' : 'AI'}: ${msg.text}`)
         .join('\n\n');
 
-      let systemPrompt = `You are a helpful NBC News AI assistant.\n\nTODAY'S NEWS:\n${newsContext}\n\n`;
+      let systemPrompt = `You are a helpful NBC News AI assistant answering questions about Namibian news.\n\nTODAY'S NEWS:\n${newsContext}\n\n`;
       if (selectedArticle) {
         systemPrompt = `You are a helpful NBC News AI assistant. The user is currently watching this video report:\nTitle: ${selectedArticle.title}\nFull Text: ${selectedArticle.fullText}\n\nOTHER HEADLINES:\n${newsContext}\n\n`;
       }
 
       const finalPrompt = `${systemPrompt}CONVERSATION HISTORY:\n${conversationHistory}\n\nUser: ${userText}\nAI:`;
 
-      // Using gemini-pro via stable v1 endpoint to guarantee compatibility
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${cleanApiKey}`, {
+      // Direct, reliable REST API call to Gemini 1.5 Flash using v1beta
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${cleanApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -217,12 +219,12 @@ export default function NewsFeed({ user }) {
 
     } catch (error) {
       console.error("AI Error:", error);
+      setIsTyping(false);
       setChatMessages(prev => {
         const updated = [...prev];
         updated[updated.length - 1].text = `AI Error: ${error.message}`;
         return updated;
       });
-      setIsTyping(false);
     }
   };
 
@@ -485,7 +487,7 @@ export default function NewsFeed({ user }) {
             <form onSubmit={handleSendMessage} className="p-3 bg-white border-t border-gray-100 flex gap-2">
               <input 
                 type="text" 
-            value={chatInput}
+                value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 placeholder="Ask about NBC reports..."
                 className="flex-1 bg-slate-100 text-sm rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow"
