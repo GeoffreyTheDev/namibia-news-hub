@@ -7,14 +7,14 @@ const getTodayDate = () => {
   return new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: '2-digit', year: 'numeric' });
 };
 
-// NBC DIGITAL NEWS DATABASE (Image URLs fixed to match specific video IDs)
+// NBC DIGITAL NEWS DATABASE (Image URLs fixed to universally supported hqdefault.jpg)
 const nbcDatabase = [
   {
     id: 1,
     title: "LPM criticises government's economic management",
     date: getTodayDate(),
     videoId: "6ebkQmUL-dE", 
-    image: "https://img.youtube.com/vi/6ebkQmUL-dE/maxresdefault.jpg",
+    image: "https://img.youtube.com/vi/6ebkQmUL-dE/hqdefault.jpg",
     summary: "Landless People's Movement (LPM) raises severe concerns regarding national economic policies.",
     fullText: "The Landless People's Movement has strongly criticized the government's handling of the national economy, pointing to rising living costs, unemployment, and allocation inefficiencies. Party leadership outlined alternative fiscal proposals during a national media briefing in Windhoek.",
     sourceLink: "https://www.youtube.com/@nbcdigitalnews"
@@ -24,7 +24,7 @@ const nbcDatabase = [
     title: "Parents urge faster construction of Augustinus Maashika hostel",
     date: getTodayDate(),
     videoId: "cIBjIRYdPTM",
-    image: "https://img.youtube.com/vi/cIBjIRYdPTM/maxresdefault.jpg",
+    image: "https://img.youtube.com/vi/cIBjIRYdPTM/hqdefault.jpg",
     summary: "Community members call on regional authorities to expedite educational infrastructure development.",
     fullText: "Frustrated parents and school board members have stepped up calls for the speedy completion of the Augustinus Maashika hostel facilities. Delays have left numerous learners commuting long distances or staying in substandard makeshift shelters.",
     sourceLink: "https://www.youtube.com/@nbcdigitalnews"
@@ -34,7 +34,7 @@ const nbcDatabase = [
     title: "Opuwo scales up basic service delivery",
     date: getTodayDate(),
     videoId: "lVc6-cdZBGo",
-    image: "https://img.youtube.com/vi/lVc6-cdZBGo/maxresdefault.jpg",
+    image: "https://img.youtube.com/vi/lVc6-cdZBGo/hqdefault.jpg",
     summary: "Town council initiates infrastructure upgrades to improve water and sanitation access.",
     fullText: "The Opuwo Town Council has launched a comprehensive initiative to scale up municipal service delivery across informal settlements, focusing specifically on clean water accessibility, waste management, and solar-powered lighting grids.",
     sourceLink: "https://www.youtube.com/@nbcdigitalnews"
@@ -44,7 +44,7 @@ const nbcDatabase = [
     title: "Nandi-Ndaitwah urges action on Africa's climate action goals",
     date: getTodayDate(),
     videoId: "WAbQ9TazRUU",
-    image: "https://img.youtube.com/vi/WAbQ9TazRUU/maxresdefault.jpg",
+    image: "https://img.youtube.com/vi/WAbQ9TazRUU/hqdefault.jpg",
     summary: "Namibian leadership calls for robust international backing for sustainable green projects.",
     fullText: "At the continental climate dialogue, national leaders emphasized that African nations require immediate, unhindered access to climate adaptation funding to safeguard agricultural sectors against recurring droughts and environmental shifts.",
     sourceLink: "https://www.youtube.com/@nbcdigitalnews"
@@ -54,7 +54,7 @@ const nbcDatabase = [
     title: "Memorial service honours late former First Lady Pohamba",
     date: getTodayDate(),
     videoId: "3rQzW7sO2Jc",
-    image: "https://img.youtube.com/vi/3rQzW7sO2Jc/maxresdefault.jpg",
+    image: "https://img.youtube.com/vi/3rQzW7sO2Jc/hqdefault.jpg",
     summary: "Nation gathers in Windhoek to pay final respects and celebrate her enduring legacy.",
     fullText: "Dignitaries, family members, and citizens gathered at a solemn state memorial service to honor the life and humanitarian contributions of the late former First Lady, Mme Penehupifo Pohamba, remembering her dedication to maternal health and education.",
     sourceLink: "https://www.youtube.com/@nbcdigitalnews"
@@ -64,7 +64,7 @@ const nbcDatabase = [
     title: "Russia sounds alarm on Africa's 'debt abyss' risk",
     date: getTodayDate(),
     videoId: "y4F8XzP3eKw",
-    image: "https://img.youtube.com/vi/y4F8XzP3eKw/maxresdefault.jpg",
+    image: "https://img.youtube.com/vi/y4F8XzP3eKw/hqdefault.jpg",
     summary: "International financial forum highlights sustainable loan structuring for developing nations.",
     fullText: "Global financial analysts meeting in regional forums have discussed structural debt adjustments across developing economies, warning against high-interest borrowing burdens that constrain infrastructure budgets.",
     sourceLink: "https://www.youtube.com/@nbcdigitalnews"
@@ -74,7 +74,7 @@ const nbcDatabase = [
     title: "Walvis Bay port records record container throughput in Q3",
     date: getTodayDate(),
     videoId: "bJ5tK3D1xMw",
-    image: "https://img.youtube.com/vi/bJ5tK3D1xMw/maxresdefault.jpg",
+    image: "https://img.youtube.com/vi/bJ5tK3D1xMw/hqdefault.jpg",
     summary: "Logistics corridors expand as SADC trade volume increases substantially.",
     fullText: "Namport has registered historic container movement figures, reinforcing Walvis Bay's strategic standing as the primary trade gateway linking landlocked Southern African Development Community markets to international shipping lanes.",
     sourceLink: "https://www.youtube.com/@nbcdigitalnews"
@@ -84,7 +84,7 @@ const nbcDatabase = [
     title: "Green Hydrogen project moves to environmental impact assessment phase",
     date: getTodayDate(),
     videoId: "a9N7R3f2xLw",
-    image: "https://img.youtube.com/vi/a9N7R3f2xLw/maxresdefault.jpg",
+    image: "https://img.youtube.com/vi/a9N7R3f2xLw/hqdefault.jpg",
     summary: "Tsau ||Khaeb national park initiative opens public consultation meetings.",
     fullText: "The multi-billion euro green hydrogen venture has entered its formal environmental vetting stage, with local stakeholders participating in public hearings covering ecological preservation, job quotas, and regional development.",
     sourceLink: "https://www.youtube.com/@nbcdigitalnews"
@@ -94,7 +94,7 @@ const nbcDatabase = [
     title: "Brave Warriors announce squad for upcoming AFCON qualifiers",
     date: getTodayDate(),
     videoId: "M2tK8rT9sL4",
-    image: "https://img.youtube.com/vi/M2tK8rT9sL4/maxresdefault.jpg",
+    image: "https://img.youtube.com/vi/M2tK8rT9sL4/hqdefault.jpg",
     summary: "Technical team reveals 23-man roster combining domestic league stars and international pros.",
     fullText: "The Namibia Football Association announced the national team squad scheduled to report for training camp ahead of crucial continental qualifiers, aiming for a strong showing on the international stage.",
     sourceLink: "https://www.youtube.com/@nbcdigitalnews"
@@ -104,7 +104,7 @@ const nbcDatabase = [
     title: "Bank of Namibia holds repo rate steady amid stable inflation trends",
     date: getTodayDate(),
     videoId: "J8wK3rN2pL9",
-    image: "https://img.youtube.com/vi/J8wK3rN2pL9/maxresdefault.jpg",
+    image: "https://img.youtube.com/vi/J8wK3rN2pL9/hqdefault.jpg",
     summary: "Monetary policy committee maintains current interest rates to support economic stability.",
     fullText: "The central bank announced that interest rates will remain unchanged, citing moderate domestic price pressures and healthy foreign reserve buffers designed to protect commercial borrowers.",
     sourceLink: "https://www.youtube.com/@nbcdigitalnews"
@@ -114,7 +114,7 @@ const nbcDatabase = [
     title: "NUST and UNAM launch joint artificial intelligence research incubator",
     date: getTodayDate(),
     videoId: "K9sJ4tP7wL2",
-    image: "https://img.youtube.com/vi/K9sJ4tP7wL2/maxresdefault.jpg",
+    image: "https://img.youtube.com/vi/K9sJ4tP7wL2/hqdefault.jpg",
     summary: "Higher education institutions partner to foster homegrown technological solutions.",
     fullText: "In a landmark academic partnership, NUST and UNAM have inaugurated a shared AI laboratory focused on developing localized language models, agricultural tech automation, and smart security frameworks.",
     sourceLink: "https://www.youtube.com/@nbcdigitalnews"
@@ -124,7 +124,7 @@ const nbcDatabase = [
     title: "National Assembly debates new framework for digital privacy and cyber security",
     date: getTodayDate(),
     videoId: "P4wL2rM8tK5",
-    image: "https://img.youtube.com/vi/P4wL2rM8tK5/maxresdefault.jpg",
+    image: "https://img.youtube.com/vi/P4wL2rM8tK5/hqdefault.jpg",
     summary: "Legislators review updated protocols to safeguard citizens and corporate data online.",
     fullText: "Parliament has commenced formal readings on the cyber security legislation package, setting compliance benchmarks for corporate data handlers and reinforcing legal safeguards against digital fraud.",
     sourceLink: "https://www.youtube.com/@nbcdigitalnews"
@@ -147,7 +147,7 @@ export default function NewsFeed({ user }) {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([
-    { role: 'ai', text: 'Hi Geoffrey! I am your NBC News AI. Ask me anything about today\'s video reports!' }
+    { role: 'ai', text: 'Hi Geoffrey! I am your NBC News AI assistant. Ask me anything about today\'s video reports!' }
   ]);
   const [isTyping, setIsTyping] = useState(false);
   
@@ -187,7 +187,6 @@ export default function NewsFeed({ user }) {
 
       const finalPrompt = `${systemPrompt}CONVERSATION HISTORY:\n${conversationHistory}\n\nUser: ${userText}\nAI:`;
 
-      // Call the secure local Vercel API route instead of external Google endpoints
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -431,7 +430,7 @@ export default function NewsFeed({ user }) {
                     <FaPaperPlane size={16} />
                   </button>
                 </div>
-                <p className="text-center text-[10px] text-gray-400 mt-2 font-medium">Powered by Gemini AI</p>
+                <p className="text-center text-[10px] text-gray-400 mt-2 font-medium">Powered by Groq AI</p>
               </form>
             </div>
           </div>

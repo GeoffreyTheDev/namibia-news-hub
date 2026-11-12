@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import Groq from "groq-sdk";
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -6,25 +6,22 @@ export default async function handler(req, res) {
   }
 
   try {
-    const apiKey = process.env.VITE_GEMINI_API_KEY;
+    const apiKey = process.env.VITE_GROQ_API_KEY;
     if (!apiKey) {
-      return res.status(500).json({ error: 'API key not configured on server' });
+      return res.status(500).json({ error: 'Groq API key not configured on server' });
     }
 
+    const groq = new Groq({ apiKey });
     const { prompt } = req.body;
-    
-    // Initialize the official SDK on the backend
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    // Generate the response
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [{ role: "system", content: "You are a helpful AI news assistant." }, { role: "user", content: prompt }],
+      model: "llama3-8b-8192", 
+    });
 
-    res.status(200).json({ reply: text });
+    res.status(200).json({ reply: chatCompletion.choices[0]?.message?.content || "No response generated." });
   } catch (error) {
-    console.error("Backend AI Error:", error);
+    console.error("Groq AI Error:", error);
     res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 }
